@@ -9,29 +9,19 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      firstName: {
-        type: Sequelize.STRING
-      },
-      lastName: {
+      username: {
         type: Sequelize.STRING
       },
       email: {
         type: Sequelize.STRING
       },
-      username: {
-        type: Sequelize.STRING
-      },
       password: {
         type: Sequelize.STRING
       },
-      address: {
-        type: Sequelize.STRING
-      },
-      gender: {
-        type: Sequelize.STRING
-      },
       roleId: {
-        type: Sequelize.INTEGER
+        // nếu không có role 0 là admin, 1 là user
+        type: Sequelize.INTEGER,
+        defaultValue: 1
       },
       createdAt: {
         allowNull: false,

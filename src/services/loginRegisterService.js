@@ -2,10 +2,20 @@ require("dotenv").config();
 const db = require("../models");
 const jwt = require("jsonwebtoken");
 const redis = require("../config/redis");
+const { hashPassword, comparePasswords } = require('~/utils/passwordUtils');
+
 
 async function checkEmailExist(email) {
   const user = await db.User.findOne({
     where: { email: email },
+  });
+
+  return user ? true : false;
+}
+
+async function checkUsernameExist(username) {
+  const user = await db.User.findOne({
+    where: { username: username },
   });
 
   return user ? true : false;
@@ -19,13 +29,20 @@ async function registerUser(rawUserData) {
     };
   }
 
+  if (await checkUsernameExist(rawUserData.username)) {
+    return {
+      EM: "Username already exists",
+      EC: 1,
+    };
+  }
+
+  // Băm mật khẩu trước khi lưu vào cơ sở dữ liệu
+  rawUserData.password = await hashPassword(rawUserData.password);
+
   await db.User.create({
-    firstName: rawUserData.firstName,
-    lastName: rawUserData.lastName,
+    username: rawUserData.username,
     email: rawUserData.email,
     password: rawUserData.password,
-    address: rawUserData.address,
-    gender: rawUserData.gender,
   });
 
   return {
@@ -39,9 +56,18 @@ async function loginUser(rawUserData, res) {
     where: { username: rawUserData.username },
   });
 
-  if (!user || user.password !== rawUserData.password) {
+  if (!user) {
     return {
-      EM: "Invalid email or password",
+      EM: "Username does not exist",
+      EC: 1,
+    };
+  }
+
+  const match = await comparePasswords(rawUserData.password, user.password);
+
+  if (!match) {
+    return {
+      EM: "Password is incorrect",
       EC: 1,
     };
   }
@@ -83,6 +109,10 @@ async function loginUser(rawUserData, res) {
     EC: 0,
     data: {
       accessToken,
+      user: {
+        id: user.id,
+        username: user.username,
+      },
     },
   };
 }
@@ -102,8 +132,20 @@ async function getProfile(rawUserData) {
   };
 }
 
+async function logoutUser(rawUserData, res) {
+  res.clearCookie("refreshToken");
+  // xoá Refresh Token khỏi Redis
+  await redis.del(`refreshToken:${rawUserData.id}`);
+
+  return {
+    EM: "Logout successfully",
+    EC: 0,
+  };
+}
+
 module.exports = {
   registerUser,
   loginUser,
   getProfile,
+  logoutUser,
 };
