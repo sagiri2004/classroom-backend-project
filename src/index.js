@@ -2,6 +2,7 @@ const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const bodyParser = require('body-parser');
 const port = process.env.PORT || 3000;
 const routes = require("./routes");
 const connectDB = require("./config/connectDB");
@@ -16,6 +17,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+app.use(bodyParser.json());
+
 routes(app);
 connectDB();
 
