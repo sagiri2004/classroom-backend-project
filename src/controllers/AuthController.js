@@ -1,31 +1,24 @@
-const loginRegisterService = require("../services/loginRegisterService");
+const authService = require("~/services/authService");
 const jwt = require("jsonwebtoken");
 
 class ApiController {
   async register(req, res) {
     const rawUserData = req.body;
-    const result = await loginRegisterService.registerUser(rawUserData);
+    const result = await authService.registerUser(rawUserData);
 
     res.json(result);
   }
 
   async login(req, res) {
     const rawUserData = req.body;
-    const result = await loginRegisterService.loginUser(rawUserData, res);
+    const result = await authService.loginUser(rawUserData, res);
 
     res.json(result);
   }
 
   async logout(req, res) {
     const rawUserData = req.user;
-    const result = await loginRegisterService.logoutUser(rawUserData, res);
-
-    res.json(result);
-  }
-
-  async profile(req, res) {
-    const rawUserData = req.user;
-    const result = await loginRegisterService.getProfile(rawUserData);
+    const result = await authService.logoutUser(rawUserData, res);
 
     res.json(result);
   }

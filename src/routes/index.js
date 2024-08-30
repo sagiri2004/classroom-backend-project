@@ -1,8 +1,7 @@
-const homeRouter = require("./home");
-const apiRouter = require("./api");
+const authRouter = require("./auth");
+const userRouter = require("./user");
 
 module.exports = (app) => {
-  app.use("/api", apiRouter);
-  app.use("/", homeRouter);
+  app.use("/api/auth", authRouter);
+  app.use("/api/user", userRouter);
 };
-

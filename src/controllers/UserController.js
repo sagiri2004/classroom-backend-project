@@ -1,4 +1,5 @@
-const db = require("../models");
+const db = require("~/models");
+const userService = require("~/services/userService");
 
 class UserController {
   async createProfile(req, res) {
@@ -29,6 +30,13 @@ class UserController {
         EC: 1,
       });
     }
+  }
+
+  async profile(req, res) {
+    const rawUserData = req.user;
+    const result = await userService.getProfile(rawUserData);
+
+    res.json(result);
   }
 }
 

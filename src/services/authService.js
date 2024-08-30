@@ -1,9 +1,8 @@
 require("dotenv").config();
-const db = require("../models");
+const db = require("~/models");
 const jwt = require("jsonwebtoken");
-const redis = require("../config/redis");
-const { hashPassword, comparePasswords } = require('~/utils/passwordUtils');
-
+const redis = require("~/config/redis");
+const { hashPassword, comparePasswords } = require("~/utils/passwordUtils");
 
 async function checkEmailExist(email) {
   const user = await db.User.findOne({
@@ -95,7 +94,7 @@ async function loginUser(rawUserData, res) {
   try {
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-    //   secure: true,
+      //   secure: true,
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/",
@@ -117,21 +116,6 @@ async function loginUser(rawUserData, res) {
   };
 }
 
-async function getProfile(rawUserData) {
-  const user = await db.User.findOne({
-    where: { username: rawUserData.username },
-    include: db.Profile,
-  });
-
-  return {
-    EM: "Login successfully",
-    EC: 0,
-    data: {
-      user,
-    },
-  };
-}
-
 async function logoutUser(rawUserData, res) {
   res.clearCookie("refreshToken");
   // xoá Refresh Token khỏi Redis
@@ -146,6 +130,5 @@ async function logoutUser(rawUserData, res) {
 module.exports = {
   registerUser,
   loginUser,
-  getProfile,
   logoutUser,
 };

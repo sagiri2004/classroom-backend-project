@@ -1,14 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const apiController = require("../controllers/ApiController");
-const useController = require("../controllers/UserController");
-const authenticateToken = require("../middleware/authenticateToken");
+const useController = require("~/controllers/UserController");
+const authenticateToken = require("~/middleware/authenticateToken");
 const upload = require("~/config/cloudinary");
 
-router.post("/register", apiController.register);
-router.post("/login", apiController.login);
-router.post("/logout", authenticateToken, apiController.logout);
-router.get("/profile", authenticateToken, apiController.profile);
+router.get("/profile", authenticateToken, useController.profile);
 router.post(
   "/profile",
   authenticateToken,
@@ -31,6 +27,5 @@ router.post(
   },
   useController.createProfile
 );
-router.get("/refresh-token", apiController.refreshToken);
 
 module.exports = router;
