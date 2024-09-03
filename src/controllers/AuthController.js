@@ -1,5 +1,6 @@
 const authService = require("~/services/authService");
 const jwt = require("jsonwebtoken");
+const redis = require("~/config/redis");
 
 class ApiController {
   async register(req, res) {
@@ -25,12 +26,18 @@ class ApiController {
 
   async refreshToken(req, res) {
     const refreshToken = req?.cookies?.refreshToken;
-
-    console.log(req.cookies);
-    console.log(refreshToken);
-
+    
     if (!refreshToken) {
-      return res.status(401).json({ EM: "Refresh token is required", EC: 1 });
+      // tra ve loi 403
+      return res.status(403).json({ EM: "No refresh token provided", EC: 1 });
+    }
+
+    // check token trong redis
+    const token = await redis.get(refreshToken);
+
+    if (!token) {
+      // tra ve loi 403
+      return res.status(403).json({ EM: "Invalid refresh token", EC: 1 });
     }
 
     try {

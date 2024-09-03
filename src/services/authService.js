@@ -53,6 +53,13 @@ async function registerUser(rawUserData) {
 async function loginUser(rawUserData, res) {
   const user = await db.User.findOne({
     where: { username: rawUserData.username },
+    include: [
+      {
+        model: db.Profile,
+        as: "profile",
+        attributes: ["firstName", "lastName", "avatar"],
+      },
+    ],
   });
 
   if (!user) {
@@ -75,12 +82,12 @@ async function loginUser(rawUserData, res) {
   const accessToken = jwt.sign(
     { id: user.id, username: user.username },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: "1d" }
+    { expiresIn: "30s" }
   );
   const refreshToken = jwt.sign(
     { id: user.id, username: user.username },
     process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: "1d" }
   );
 
   // Lưu Refresh Token vào Redis
@@ -111,7 +118,13 @@ async function loginUser(rawUserData, res) {
       user: {
         id: user.id,
         username: user.username,
-      },
+        email: user.email,
+        profile: {
+          firstName: user?.profile?.firstName,
+          lastName: user?.profile?.lastName,
+          avatar: user?.profile?.avatar,
+        },
+      }
     },
   };
 }
