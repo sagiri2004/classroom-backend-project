@@ -1,5 +1,111 @@
 const db = require("~/models");
 
+// insert in the middle using order index
+const insertInMiddle = async (setId, cardId, orderIndex) => {
+  try {
+    // Tìm flashcardOrder hiện tại
+    const flashcardOrder = await db.FlashcardOrder.findOne({
+      where: { flashcardSetId: setId, flashcardId: cardId },
+    });
+
+    if (!flashcardOrder) {
+      return {
+        EM: "Flashcard order not found",
+        EC: 1,
+      };
+    }
+
+    const oldOrderIndex = flashcardOrder.orderIndex;
+
+    // Cập nhật orderIndex của flashcardOrder hiện tại
+    await flashcardOrder.update({ orderIndex });
+
+    if (orderIndex > oldOrderIndex) {
+      // Nếu orderIndex mới lớn hơn oldOrderIndex, cập nhật các bản ghi khác
+      const flashcardOrders = await db.FlashcardOrder.findAll({
+        where: {
+          flashcardSetId: setId,
+          orderIndex: {
+            [db.Sequelize.Op.gt]: oldOrderIndex,
+            [db.Sequelize.Op.lte]: orderIndex,
+          },
+          flashcardId: { [db.Sequelize.Op.ne]: cardId },
+        },
+      });
+
+      await Promise.all(
+        flashcardOrders.map((flashcardOrder) =>
+          flashcardOrder.update({
+            orderIndex: flashcardOrder.orderIndex - 1,
+          })
+        )
+      );
+    } else if (orderIndex < oldOrderIndex) {
+      // Nếu orderIndex mới nhỏ hơn oldOrderIndex, cập nhật các bản ghi khác
+      const flashcardOrders = await db.FlashcardOrder.findAll({
+        where: {
+          flashcardSetId: setId,
+          orderIndex: {
+            [db.Sequelize.Op.gte]: orderIndex,
+            [db.Sequelize.Op.lt]: oldOrderIndex,
+          },
+          flashcardId: { [db.Sequelize.Op.ne]: cardId },
+        },
+      });
+
+      await Promise.all(
+        flashcardOrders.map((flashcardOrder) =>
+          flashcardOrder.update({
+            orderIndex: flashcardOrder.orderIndex + 1,
+          })
+        )
+      );
+    }
+
+    return {
+      EM: "Edit flashcard successfully",
+      EC: 0,
+    };
+  } catch (error) {
+    console.error("Error in insertInMiddle:", error);
+    return {
+      EM: "Failed to edit flashcard",
+      EC: 2,
+    };
+  }
+};
+
+const createAndInsertNewFlashcardAtEnd = async (setId, word, definition) => {
+  try {
+    // Tạo flashcard mới
+    const flashcard = await db.Flashcard.create({ word, definition });
+
+    // Tìm flashcardOrder có orderIndex lớn nhất
+    const flashcardOrderHighest = await db.FlashcardOrder.findOne({
+      where: { flashcardSetId: setId },
+      order: [["orderIndex", "DESC"]],
+    });
+
+    let flashcardOrderCount = 0;
+
+    if (flashcardOrderHighest) {
+      flashcardOrderCount = flashcardOrderHighest.orderIndex + 1;
+    }
+
+    // Tạo flashcardOrder mới
+    await db.FlashcardOrder.create({
+      flashcardId: flashcard.id,
+      flashcardSetId: setId,
+      orderIndex: flashcardOrderCount,
+    });
+
+    return flashcard;
+  } catch (error) {
+    console.error("Error in createAndInsertNewFlashcardAtEnd:", error);
+    return null;
+  }
+};
+
 async function getFlashcardSet(flashcardSetId) {
   const flashcardSet = await db.FlashcardSet.findOne({
     where: { id: flashcardSetId },
@@ -26,7 +132,9 @@ async function getFlashcardSet(flashcardSetId) {
   flashcardOrderIds.sort((a, b) => a.orderIndex - b.orderIndex);
 
   // chuyen ve dang array cac id
-  const flashcardOrderIdsArray = flashcardOrderIds.map((flashcardOrder) => flashcardOrder.flashcardId);
+  const flashcardOrderIdsArray = flashcardOrderIds.map(
+    (flashcardOrder) => flashcardOrder.flashcardId
+  );
 
   if (!flashcardSet) {
     return {
@@ -90,15 +198,184 @@ async function createFlashcardSet(rawFlashcardSetData) {
   return {
     EM: "Create flashcard set successfully",
     EC: 0,
+    data: {
+      id: flashcardSet.id,
+    },
   };
 }
 
-async function editFlashcardSet(rawData) {
-  
+async function editFlashcard(rawData) {
+  // rawData co dang nhu sau:
+  // [
+  //  {
+  //   setId: 1,
+  //   cardId: 1,
+  //   word: "Hello",
+  //   definition: "Xin chào",
+  //   orderIndex: 0
+  //  }
+  //  { ... }
+  // ]
+
+  // truong hop co 1 object duy nhat trong array rawData
+  // thi se co 1 truong hop la thay doi orderIndex
+  // khi do phai update lai orderIndex cua flashcardOrder
+  // va update lai orderIndex cua cac flashcardOrder khac
+  if (rawData.length === 1 && rawData[0].cardId !== undefined && rawData[0].orderIndex !== undefined) {
+    const { setId, cardId, orderIndex } = rawData[0];
+
+    if (orderIndex !== undefined) {
+      const result = await insertInMiddle(setId, cardId, orderIndex);
+
+      return {
+        EM: result.EM,
+        EC: result.EC,
+      };
+    }
+  }
+
+  // truong hop co nhieu object trong array rawData
+  // thi se co 2 truong hop la thay doi noi dung cua flashcard
+  // hoac tao moi flashcard
+  // truong hop 1: thay doi noi dung cua flashcard
+  // object co dang { setId: 1, cardId: 1, word: "Hello", definition: "Xin chào" }
+  // truong hop 2: tao moi flashcard
+  // object co dang { setId: 1, word: "Hello", definition: "Xin chào", orderIndex: 0 }
+  else {
+    const flashcardOrderPromises = rawData.map(async (data) => {
+      const { setId, cardId, word, definition, orderIndex } = data;
+
+      if (cardId) {
+        const flashcard = await db.Flashcard.findOne({
+          where: { id: cardId },
+        });
+
+        if (!flashcard) {
+          return {
+            EM: "Flashcard not found",
+            EC: 1,
+          };
+        }
+
+        await flashcard.update({ word, definition });
+
+        return {
+          EM: "Edit flashcard successfully",
+          EC: 0,
+        };
+      } else {
+        const flashcard = await createAndInsertNewFlashcardAtEnd(
+          setId,
+          word,
+          definition
+        );
+
+        if (!flashcard) {
+          return {
+            EM: "Failed to create flashcard",
+            EC: 2,
+          };
+        }
+
+        const result = await insertInMiddle(setId, flashcard.id, orderIndex);
+
+        return {
+          EM: result.EM,
+          EC: result.EC,
+        };
+      }
+    });
+
+    await Promise.all(flashcardOrderPromises);
+
+    return {
+      EM: "Edit flashcard successfully",
+      EC: 0,
+    };
+  }
+}
+
+async function deleteFlashcardSet(flashcardSetId) {
+  const flashcardSet = await db.FlashcardSet.findOne({
+    where: { id: flashcardSetId },
+  });
+
+  if (!flashcardSet) {
+    return {
+      EM: "Flashcard set not found",
+      EC: 1,
+    };
+  }
+
+  // Tìm các flashcardId liên quan từ FlashcardOrder
+  const flashcardOrders = await db.FlashcardOrder.findAll({
+    where: { flashcardSetId },
+  });
+
+  const flashcardIds = flashcardOrders.map((order) => order.flashcardId);
+
+  // Xóa các bản ghi từ bảng Flashcard dựa trên flashcardIds tìm được
+  if (flashcardIds.length > 0) {
+    await db.Flashcard.destroy({
+      where: { id: flashcardIds },
+    });
+  }
+
+  // Xóa các bản ghi từ bảng FlashcardOrder dựa trên flashcardSetId
+  await db.FlashcardOrder.destroy({
+    where: { flashcardSetId },
+  });
+
+  // Xóa bản ghi từ bảng FlashcardSet dựa trên flashcardSetId
+  await db.FlashcardSet.destroy({
+    where: { id: flashcardSetId },
+  });
+
+  return {
+    EM: "Delete flashcard set successfully",
+    EC: 0,
+  };
+}
+
+async function deleteFlashcard(flashcardId) {
+  const flashcard = await db.Flashcard.findOne({
+    where: { id: flashcardId },
+  });
+
+  if (!flashcard) {
+    return {
+      EM: "Flashcard not found",
+      EC: 1,
+    };
+  }
+
+  await db.FlashcardOrder.destroy({
+    where: { flashcardId },
+  });
+
+  // cap nhat lai orderIndex cua cac flashcardOrder
+  const flashcardOrders = await db.FlashcardOrder.findAll({
+    where: { flashcardId: { [db.Sequelize.Op.ne]: flashcardId } },
+  });
+
+  flashcardOrders.forEach(async (flashcardOrder, index) => {
+    await flashcardOrder.update({ orderIndex: index });
+  });
+
+  await db.Flashcard.destroy({
+    where: { id: flashcardId },
+  });
+
+  return {
+    EM: "Delete flashcard successfully",
+    EC: 0,
+  };
 }
 
 module.exports = {
   getFlashcardSet,
   createFlashcardSet,
-  editFlashcardSet,
+  editFlashcard,
+  deleteFlashcardSet,
+  deleteFlashcard,
 };
