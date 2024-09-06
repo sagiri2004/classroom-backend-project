@@ -5,7 +5,9 @@ class FlashcardsController {
     const rawFlashcardSetData = req.body;
 
     try {
-      const result = await flashcardService.createFlashcardSet(rawFlashcardSetData);
+      const result = await flashcardService.createFlashcardSet(
+        rawFlashcardSetData
+      );
 
       res.json(result);
     } catch (err) {
@@ -70,6 +72,25 @@ class FlashcardsController {
 
     try {
       const result = await flashcardService.deleteFlashcard(id);
+
+      res.json(result);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({
+        EM: "Internal server error",
+        EC: 1,
+        data: {
+          id,
+        }
+      });
+    }
+  }
+
+  async addFlashcard(req, res) {
+    const { setId } = req.body;
+
+    try {
+      const result = await flashcardService.createFlashcard(setId);
 
       res.json(result);
     } catch (err) {

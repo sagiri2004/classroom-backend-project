@@ -205,6 +205,7 @@ async function createFlashcardSet(rawFlashcardSetData) {
 }
 
 async function editFlashcard(rawData) {
+  console.log(rawData);
   // rawData co dang nhu sau:
   // [
   //  {
@@ -221,7 +222,11 @@ async function editFlashcard(rawData) {
   // thi se co 1 truong hop la thay doi orderIndex
   // khi do phai update lai orderIndex cua flashcardOrder
   // va update lai orderIndex cua cac flashcardOrder khac
-  if (rawData.length === 1 && rawData[0].cardId !== undefined && rawData[0].orderIndex !== undefined) {
+  if (
+    rawData.length === 1 &&
+    rawData[0].cardId !== undefined &&
+    rawData[0].orderIndex !== undefined
+  ) {
     const { setId, cardId, orderIndex } = rawData[0];
 
     if (orderIndex !== undefined) {
@@ -334,6 +339,9 @@ async function deleteFlashcardSet(flashcardSetId) {
   return {
     EM: "Delete flashcard set successfully",
     EC: 0,
+    data: {
+      id: flashcardSetId,
+    },
   };
 }
 
@@ -369,6 +377,28 @@ async function deleteFlashcard(flashcardId) {
   return {
     EM: "Delete flashcard successfully",
     EC: 0,
+    data: {
+      id: flashcardId,
+    },
+  };
+}
+
+async function createFlashcard(setId) {
+  const flashcard = await createAndInsertNewFlashcardAtEnd(setId, "", "");
+
+  if (!flashcard) {
+    return {
+      EM: "Failed to create flashcard",
+      EC: 1,
+    };
+  }
+
+  return {
+    EM: "Create flashcard successfully",
+    EC: 0,
+    data: {
+      id: flashcard.id,
+    },
   };
 }
 
@@ -378,4 +408,5 @@ module.exports = {
   editFlashcard,
   deleteFlashcardSet,
   deleteFlashcard,
+  createFlashcard,
 };
