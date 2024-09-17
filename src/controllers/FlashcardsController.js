@@ -3,10 +3,11 @@ const flashcardService = require("~/services/flashcardService");
 class FlashcardsController {
   async createFlashcardSet(req, res) {
     const rawFlashcardSetData = req.body;
-
+    const user = req.user;
     try {
       const result = await flashcardService.createFlashcardSet(
-        rawFlashcardSetData
+        rawFlashcardSetData,
+        user
       );
 
       res.json(result);

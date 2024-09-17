@@ -24,6 +24,25 @@ class ApiController {
     res.json(result);
   }
 
+  async myProfile(req, res) {
+    const userId = req.user.id;
+    const result = await authService.getUserProfile(userId);
+
+    res.json({
+      EM: "Get user profile successfully",
+      EC: 0,
+      data: result,
+    });
+  }
+  
+  async changeProfile(req, res) {
+    const userId = req.user.id;
+    const rawUserData = req.body;
+    const result = await authService.changeProfile(userId, rawUserData);
+
+    res.json(result);
+  }
+
   async refreshToken(req, res) {
     const refreshToken = req?.cookies?.refreshToken;
     

@@ -163,8 +163,8 @@ async function getFlashcardSet(flashcardSetId) {
   };
 }
 
-async function createFlashcardSet(rawFlashcardSetData) {
-  const { title, description, flashcards } = rawFlashcardSetData;
+async function createFlashcardSet(rawFlashcardSetData, user) {
+  const { title, description } = rawFlashcardSetData;
 
   // Tạo FlashcardSet
   const flashcardSet = await db.FlashcardSet.create({
@@ -172,28 +172,19 @@ async function createFlashcardSet(rawFlashcardSetData) {
     description,
   });
 
-  // Tạo flashcards và flashcard orders
-  const flashcardOrderPromises = flashcards.map(async (flashcard, index) => {
-    const { word, definition } = flashcard;
+  if (!flashcardSet) {
+    return {
+      EM: "Failed to create flashcard set",
+      EC: 1,
+    };
+  }
 
-    console.log(flashcardSet.id);
-
-    // Tạo Flashcard
-    const createdFlashcard = await db.Flashcard.create({
-      word,
-      definition,
-    });
-
-    // Tạo FlashcardOrder
-    return db.FlashcardOrder.create({
-      flashcardId: createdFlashcard.id,
-      flashcardSetId: flashcardSet.id,
-      orderIndex: index,
-    });
+  // Tạo FlashcardUser
+  await db.FlashcardSetUser.create({
+    flashcardSetId: flashcardSet.id, 
+    userId: user.id,
+    isCreator: true,
   });
-
-  // Đợi tất cả flashcards và flashcard orders được tạo ra
-  await Promise.all(flashcardOrderPromises);
 
   return {
     EM: "Create flashcard set successfully",
