@@ -119,8 +119,46 @@ class LibraryController {
     }
   }
 
-  // them flashcardSet vao folder
-  async addFlashcardSetsToFolder(req, res) {
+  // // them flashcardSet vao folder
+  // async addFlashcardSetsToFolder(req, res) {
+  //   try {
+  //     const { folderId, flashcardSetIds } = req.body;
+  //     const userId = req.user.id;
+
+  //     const check = await db.Folder.findOne({
+  //       where: { id: folderId, userId },
+  //     });
+
+  //     if (!check) {
+  //       return res.status(404).json({ message: "Folder not found" });
+  //     }
+  //     const folder = await db.Folder.findByPk(folderId);
+  //     if (!folder) {
+  //       return res.status(404).json({ message: "Folder not found" });
+  //     }
+
+  //     const flashcardSets = await db.FlashcardSet.findAll({
+  //       where: { id: flashcardSetIds },
+  //     });
+
+  //     if (flashcardSets.length !== flashcardSetIds.length) {
+  //       return res.status(404).json({ message: "Flashcard set not found" });
+  //     }
+
+  //     await folder.addFlashcardSets(flashcardSets);
+
+  //     res.json({
+  //       EM: "Add flashcard set to folder successfully",
+  //       EC: 0,
+  //     });
+  //   } catch (error) {
+  //     res.status(500).json({ message: error.message });
+  //   }
+  // }
+
+  // thay doi flashcardSet cua folder
+  // nhan vao folderId va flashcardSetIds da thay doi
+  async updateFlashcardSetsInFolder(req, res) {
     try {
       const { folderId, flashcardSetIds } = req.body;
       const userId = req.user.id;
@@ -132,6 +170,7 @@ class LibraryController {
       if (!check) {
         return res.status(404).json({ message: "Folder not found" });
       }
+
       const folder = await db.Folder.findByPk(folderId);
       if (!folder) {
         return res.status(404).json({ message: "Folder not found" });
@@ -145,10 +184,14 @@ class LibraryController {
         return res.status(404).json({ message: "Flashcard set not found" });
       }
 
-      await folder.addFlashcardSets(flashcardSets);
+      // sử dụng hàm tự định nghĩa trong model để update
+      await db.FlashcardSetFolder.updateFlashcardSetsInFolder(
+        flashcardSetIds,
+        folderId
+      );
 
       res.json({
-        EM: "Add flashcard set to folder successfully",
+        EM: "Update flashcard set in folder successfully",
         EC: 0,
       });
     } catch (error) {
@@ -219,6 +262,36 @@ class LibraryController {
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Server error" });
+    }
+  }
+
+  // lay ra all flashcardSet cua user da tao
+  async getFlashcardSetsCreatedByUser(req, res) {
+    try {
+      const userId = req.user.id;
+      const flashcardSets = await db.User.findOne({
+        where: { id: userId },
+        include: [
+          {
+            model: db.FlashcardSet,
+            as: "flashcardSets",
+            through: { attributes: [] },
+          },
+          {
+            model: db.Profile,
+            as: "profile", // Alias cần khớp với alias định nghĩa trong model
+            attributes: ["avatar", "firstName", "lastName"],
+          },
+        ],
+      });
+
+      res.json({
+        EM: "Get flashcard sets successfully",
+        EC: 0,
+        data: flashcardSets?.flashcardSets,
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
   }
   

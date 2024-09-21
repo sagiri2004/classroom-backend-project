@@ -54,5 +54,24 @@ module.exports = (sequelize) => {
     }
   );
 
+  // hàm tự định nghĩa để nhận vào một mảng các flashcardSetId và folderId và update vào bảng trung gian
+  // hàm sẽ xóa hết các flashcardSetId cũ của folderId và thêm các flashcardSetId mới vào
+  FlashcardSetFolder.updateFlashcardSetsInFolder = async function (flashcardSetIds, folderId) {
+    // Xóa hết các flashcardSetId cũ của folderId
+    await FlashcardSetFolder.destroy({
+      where: {
+        folderId,
+      },
+    });
+
+    // Thêm các flashcardSetId mới vào
+    const flashcardSetFolder = flashcardSetIds.map((flashcardSetId) => ({
+      flashcardSetId,
+      folderId,
+    }));
+
+    await FlashcardSetFolder.bulkCreate(flashcardSetFolder);
+  }
+
   return FlashcardSetFolder;
 };
