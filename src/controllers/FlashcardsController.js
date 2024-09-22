@@ -117,6 +117,46 @@ class FlashcardsController {
       });
     }
   }
+
+  async getTop10Viewed(req, res) {
+    try {
+      const result = await flashcardService.getTop10PopularFlashcardSet();
+      res.json(result);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({
+        EM: "Internal server error",
+        EC: 1,
+      });
+    }
+  }
+
+  async getTop10User(req, res) {
+    try {
+      const result = await flashcardService.getTop10UserCreatedMostFlashcardSet();
+      res.json(result);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({
+        EM: "Internal server error",
+        EC: 1,
+      });
+    }
+  }
+
+  async getMyFlashcardSets(req, res) {
+    const user = req.user;
+    try {
+      const result = await flashcardService.getMyFlashcardSets(user);
+      res.json(result);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({
+        EM: "Internal server error",
+        EC: 1,
+      });
+    }
+  }
 }
 
 module.exports = new FlashcardsController();

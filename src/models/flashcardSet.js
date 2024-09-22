@@ -26,6 +26,11 @@ module.exports = (sequelize) => {
         foreignKey: "flashcardSetId",
         as: "userHistories",
       });
+      FlashcardSet.hasOne(models.FlashcardSetPopularity, {
+        foreignKey: "flashcardSetId",
+        as: "popularity",
+        onDelete: "CASCADE",
+      });
     }
   }
 

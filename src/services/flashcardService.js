@@ -123,6 +123,14 @@ async function getFlashcardSet(flashcardSetId, user) {
     ],
   });
 
+  if (!flashcardSet) {
+    return {
+      EM: "Flashcard set not found",
+      EC: 1,
+      data: null,
+    };
+  }
+
   const flashcardOrderIds = await db.FlashcardOrder.findAll({
     where: { flashcardSetId },
     attributes: ["flashcardId", "orderIndex"],
@@ -137,18 +145,27 @@ async function getFlashcardSet(flashcardSetId, user) {
   );
 
   // // them vao userHistory voi activityType la view
-  await db.UserHistory.create({
-    userId: user.id,
-    flashcardSetId,
-    activityType: "view",
+  // check user co null hay khong
+  if (user) {
+    await db.UserHistory.create({
+      userId: user.id,
+      flashcardSetId: flashcardSetId,
+      activityType: "view",
+    });
+  }
+
+  // tang count view cua flashcardSet trong bang flashcardSetPopularity
+  const flashcardSetPopularity = await db.FlashcardSetPopularity.findOne({
+    where: { flashcardSetId },
   });
 
-  if (!flashcardSet) {
-    return {
-      EM: "Flashcard set not found",
-      EC: 1,
-      data: null,
-    };
+  if (flashcardSetPopularity) {
+    await flashcardSetPopularity.increment("viewCount");
+  } else {
+    await db.FlashcardSetPopularity.create({
+      flashcardSetId,
+      viewCount: 1,
+    });
   }
 
   return {
@@ -188,7 +205,7 @@ async function createFlashcardSet(rawFlashcardSetData, user) {
 
   // Tạo FlashcardUser
   await db.FlashcardSetUser.create({
-    flashcardSetId: flashcardSet.id, 
+    flashcardSetId: flashcardSet.id,
     userId: user.id,
     isCreator: true,
   });
@@ -410,24 +427,27 @@ async function getHistory(user) {
     group: ["flashcardSetId"],
     raw: true,
   });
-  
+
   // Trích xuất danh sách flashcardSetId từ kết quả subquery
-  const flashcardSetIds = subquery.map(item => item.flashcardSetId);
-  
+  const flashcardSetIds = subquery.map((item) => item.flashcardSetId);
+
   // Sử dụng danh sách flashcardSetId trong mệnh đề WHERE của truy vấn chính
   const userHistories = await db.UserHistory.findAll({
     where: {
       flashcardSetId: {
-        [db.Sequelize.Op.in]: flashcardSetIds
-      }
+        [db.Sequelize.Op.in]: flashcardSetIds,
+      },
     },
-    attributes: ["flashcardSetId", [db.Sequelize.fn("MAX", db.Sequelize.col("createdAt")), "latestView"]],
+    attributes: [
+      "flashcardSetId",
+      [db.Sequelize.fn("MAX", db.Sequelize.col("createdAt")), "latestView"],
+    ],
     group: ["flashcardSetId"],
     order: [[db.Sequelize.literal("latestView"), "DESC"]],
   });
 
-  const flashcardSetIdsArray = userHistories.map(item => item.flashcardSetId);
-  
+  const flashcardSetIdsArray = userHistories.map((item) => item.flashcardSetId);
+
   // lay ra cac flashcardSet tu flashcardSetIds bao gom title, description, userId da tao
   const flashcardSets = await db.FlashcardSet.findAll({
     where: { id: flashcardSetIdsArray },
@@ -448,7 +468,7 @@ async function getHistory(user) {
     nest: true,
   });
 
-  const adjustedFlashcardSets = flashcardSets.map(flashcardSet => ({
+  const adjustedFlashcardSets = flashcardSets.map((flashcardSet) => ({
     id: flashcardSet.id,
     title: flashcardSet.title,
     description: flashcardSet.description,
@@ -471,9 +491,10 @@ async function getHistory(user) {
         raw: true,
         nest: true, // Sử dụng nest để nhận kết quả dưới dạng đối tượng lồng nhau
       });
-  
+
       if (user && user.profile) {
-        flashcardSet.name = user.profile.firstName + " " + user.profile.lastName;
+        flashcardSet.name =
+          user.profile.firstName + " " + user.profile.lastName;
         flashcardSet.avatar = user.profile.avatar;
       } else {
         flashcardSet.name = "Unknown User";
@@ -490,7 +511,154 @@ async function getHistory(user) {
       userHistories: userHistories,
     },
   };
+}
 
+// get top 10 popular flashcard set
+async function getTop10PopularFlashcardSet() {
+  const flashcardSetPopularity = await db.FlashcardSetPopularity.findAll({
+    order: [["viewCount", "DESC"]],
+    limit: 10,
+    raw: true,
+  });
+
+  const flashcardSetIds = flashcardSetPopularity.map(
+    (item) => item.flashcardSetId
+  );
+
+  const flashcardSets = await db.FlashcardSet.findAll({
+    where: { id: flashcardSetIds },
+    attributes: ["id", "title", "description"],
+    raw: true,
+  });
+
+  // lay ra author cua flashcardSet
+  await Promise.all(
+    flashcardSets.map(async (flashcardSet) => {
+      const flashcardSetUser = await db.FlashcardSetUser.findOne({
+        where: { flashcardSetId: flashcardSet.id, isCreator: true },
+        attributes: ["userId"],
+        raw: true,
+      });
+
+      const user = await db.User.findOne({
+        where: { id: flashcardSetUser.userId },
+        include: [
+          {
+            model: db.Profile,
+            as: "profile",
+            attributes: ["firstName", "lastName", "avatar"],
+          },
+        ],
+        raw: true,
+        nest: true,
+      });
+
+      if (user && user.profile) {
+        flashcardSet.name =
+          user.profile.firstName + " " + user.profile.lastName;
+        flashcardSet.avatar = user.profile.avatar;
+      } else {
+        flashcardSet.name = "Unknown User";
+        flashcardSet.avatar = null;
+      }
+    })
+  );
+
+  return {
+    EM: "Fetch top 10 popular flashcard set successfully",
+    EC: 0,
+    data: {
+      flashcardSets,
+      flashcardSetIds,
+    },
+  };
+}
+
+// get top 10 user created flashcard set va so luong flashcard set ma user da tao
+async function getTop10UserCreatedMostFlashcardSet() {
+  const flashcardSetUsers = await db.FlashcardSetUser.findAll({
+    where: { isCreator: true },
+    group: ["userId"],
+    attributes: [
+      "userId",
+      [db.Sequelize.fn("COUNT", "flashcardSetId"), "count"],
+    ],
+    raw: true,
+    // lay ra toi da 10 user
+    limit: 10,
+  });
+
+  // lay ra thong tin user tu bang user va profile
+  const userIds = flashcardSetUsers.map((item) => item.userId);
+
+  const users = await db.Profile.findAll({
+    where: { userId: userIds },
+    raw: true,
+    nest: true,
+    attributes: ["userId", "firstName", "lastName", "avatar"],
+  });
+
+  // gep 2 mang lai voi nhau
+  users.forEach((user) => {
+    const flashcardSetUser = flashcardSetUsers.find(
+      (item) => item.userId === user.userId
+    );
+
+    user.count = flashcardSetUser.count
+      ? flashcardSetUser.count
+      : "Unknown flashcard set count";
+  });
+
+  return {
+    EM: "Fetch top 10 user created flashcard set successfully",
+    EC: 0,
+    data: users,
+  };
+}
+
+// get my flashcard set
+async function getMyFlashcardSets(user) {
+  // lay ra tat ca cac flashcardSetId ma user da tao
+  const flashcardSetUsers = await db.FlashcardSetUser.findAll({
+    where: { userId: user.id, isCreator: true },
+    attributes: ["flashcardSetId"],
+    raw: true,
+  });
+
+  const flashcardSetIds = flashcardSetUsers.map((item) => item.flashcardSetId);
+
+  const flashcardSets = await db.FlashcardSet.findAll({
+    where: { id: flashcardSetIds },
+    attributes: ["id", "title", "description"],
+    raw: true,
+    // sap xep theo thoi gian tao gan day -> cu
+    order: [["createdAt", "DESC"]],
+  });
+
+  return {
+    EM: "Fetch my flashcard set successfully",
+    EC: 0,
+    data: flashcardSets,
+  };
+}
+
+// get home page bao gom gan day, top 10 popular, top 10 user created, my flashcard set
+async function getHomePage(user) {
+  const history = await getHistory(user);
+  const top10Popular = await getTop10PopularFlashcardSet();
+  const top10UserCreated = await getTop10UserCreatedMostFlashcardSet();
+  const myFlashcardSets = await getMyFlashcardSets(user);
+
+  return {
+    EM: "Fetch home page successfully",
+    EC: 0,
+    data: {
+      history: history.data,
+      top10Popular: top10Popular.data,
+      top10UserCreated: top10UserCreated.data,
+      myFlashcardSets: myFlashcardSets.data,
+    },
+  };
 }
 
 module.exports = {
@@ -501,4 +669,8 @@ module.exports = {
   deleteFlashcard,
   createFlashcard,
   getHistory,
+  getTop10PopularFlashcardSet,
+  getTop10UserCreatedMostFlashcardSet,
+  getMyFlashcardSets,
+  getHomePage,
 };

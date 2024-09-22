@@ -13,6 +13,13 @@ router.put("/terms/save", flashcardsController.editFlashcard);
 router.delete("/terms/:id", flashcardsController.deleteFlashcard);
 router.post("/terms", flashcardsController.addFlashcard);
 router.get("/history", authenticateToken, flashcardsController.getHistory);
+router.get("/top-ten", flashcardsController.getTop10Viewed);
+router.get("/top-users", flashcardsController.getTop10User);
+router.get(
+  "/my-flashcard-sets",
+  authenticateToken,
+  flashcardsController.getMyFlashcardSets
+);
 router.get("/:id", checkUserLoggedIn, flashcardsController.getFlashcardSet);
 router.delete("/:id", flashcardsController.deleteFlashcardSet);
 
