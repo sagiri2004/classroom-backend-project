@@ -22,9 +22,9 @@ class FlashcardsController {
 
   async getFlashcardSet(req, res) {
     const { id } = req.params;
-
+    const user = req.user;
     try {
-      const result = await flashcardService.getFlashcardSet(id);
+      const result = await flashcardService.getFlashcardSet(id, user);
 
       res.json(result);
     } catch (err) {
@@ -92,6 +92,21 @@ class FlashcardsController {
 
     try {
       const result = await flashcardService.createFlashcard(setId);
+
+      res.json(result);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({
+        EM: "Internal server error",
+        EC: 1,
+      });
+    }
+  }
+
+  async getHistory(req, res) {
+    const user = req.user;
+    try {
+      const result = await flashcardService.getHistory(user);
 
       res.json(result);
     } catch (err) {

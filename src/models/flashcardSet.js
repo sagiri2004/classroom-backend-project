@@ -22,6 +22,10 @@ module.exports = (sequelize) => {
         otherKey: 'folderId',
         as: 'folders',  // Alias của quan hệ
       });
+      FlashcardSet.hasMany(models.UserHistory, {
+        foreignKey: "flashcardSetId",
+        as: "userHistories",
+      });
     }
   }
 

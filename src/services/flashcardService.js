@@ -106,7 +106,7 @@ const createAndInsertNewFlashcardAtEnd = async (setId, word, definition) => {
   }
 };
 
-async function getFlashcardSet(flashcardSetId) {
+async function getFlashcardSet(flashcardSetId, user) {
   const flashcardSet = await db.FlashcardSet.findOne({
     where: { id: flashcardSetId },
     include: [
@@ -135,6 +135,13 @@ async function getFlashcardSet(flashcardSetId) {
   const flashcardOrderIdsArray = flashcardOrderIds.map(
     (flashcardOrder) => flashcardOrder.flashcardId
   );
+
+  // // them vao userHistory voi activityType la view
+  await db.UserHistory.create({
+    userId: user.id,
+    flashcardSetId,
+    activityType: "view",
+  });
 
   if (!flashcardSet) {
     return {
@@ -393,6 +400,99 @@ async function createFlashcard(setId) {
   };
 }
 
+// get history
+async function getHistory(user) {
+  // lay ra tat ca cac flashcardSetId ma user da xem va chi lay ra 1 lan cuoi cung
+  // Thực thi subquery để lấy danh sách flashcardSetId
+  const subquery = await db.UserHistory.findAll({
+    where: { userId: user.id, activityType: "view" },
+    attributes: ["flashcardSetId"],
+    group: ["flashcardSetId"],
+    raw: true,
+  });
+  
+  // Trích xuất danh sách flashcardSetId từ kết quả subquery
+  const flashcardSetIds = subquery.map(item => item.flashcardSetId);
+  
+  // Sử dụng danh sách flashcardSetId trong mệnh đề WHERE của truy vấn chính
+  const userHistories = await db.UserHistory.findAll({
+    where: {
+      flashcardSetId: {
+        [db.Sequelize.Op.in]: flashcardSetIds
+      }
+    },
+    attributes: ["flashcardSetId", [db.Sequelize.fn("MAX", db.Sequelize.col("createdAt")), "latestView"]],
+    group: ["flashcardSetId"],
+    order: [[db.Sequelize.literal("latestView"), "DESC"]],
+  });
+
+  const flashcardSetIdsArray = userHistories.map(item => item.flashcardSetId);
+  
+  // lay ra cac flashcardSet tu flashcardSetIds bao gom title, description, userId da tao
+  const flashcardSets = await db.FlashcardSet.findAll({
+    where: { id: flashcardSetIdsArray },
+    include: [
+      {
+        model: db.User,
+        as: "users",
+        attributes: ["id"],
+        through: {
+          model: db.FlashcardSetUser,
+          as: "flashcardSetUser",
+          attributes: ["isCreator"],
+        },
+      },
+    ],
+    attributes: ["id", "title", "description"],
+    raw: true,
+    nest: true,
+  });
+
+  const adjustedFlashcardSets = flashcardSets.map(flashcardSet => ({
+    id: flashcardSet.id,
+    title: flashcardSet.title,
+    description: flashcardSet.description,
+    userId: flashcardSet.users.id,
+  }));
+
+  // lay ra name va avatar cua user da tao trong bang profile bang cach map qua adjustedFlashcardSets
+  // su dung promise.all de chay song song
+  await Promise.all(
+    adjustedFlashcardSets.map(async (flashcardSet) => {
+      const user = await db.User.findOne({
+        where: { id: flashcardSet.userId },
+        include: [
+          {
+            model: db.Profile,
+            as: "profile",
+            attributes: ["firstName", "lastName", "avatar"],
+          },
+        ],
+        raw: true,
+        nest: true, // Sử dụng nest để nhận kết quả dưới dạng đối tượng lồng nhau
+      });
+  
+      if (user && user.profile) {
+        flashcardSet.name = user.profile.firstName + " " + user.profile.lastName;
+        flashcardSet.avatar = user.profile.avatar;
+      } else {
+        flashcardSet.name = "Unknown User";
+        flashcardSet.avatar = null;
+      }
+    })
+  );
+
+  return {
+    EM: "Fetch history successfully",
+    EC: 0,
+    data: {
+      flashcardSets: adjustedFlashcardSets,
+      userHistories: userHistories,
+    },
+  };
+
+}
+
 module.exports = {
   getFlashcardSet,
   createFlashcardSet,
@@ -400,4 +500,5 @@ module.exports = {
   deleteFlashcardSet,
   deleteFlashcard,
   createFlashcard,
+  getHistory,
 };

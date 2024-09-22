@@ -12,6 +12,8 @@ module.exports = (sequelize, DataTypes) => {
         as: "flashcardSets",
       });
       User.hasMany(models.Folder, { foreignKey: "userId", as: "folders" })
+      // history
+      User.hasMany(models.UserHistory, { foreignKey: "userId", as: "userHistories" });
     }
   }
 
