@@ -8,11 +8,24 @@ const routes = require("./routes");
 const connectDB = require("./config/connectDB");
 const app = express();
 
+const allowedOrigins = [
+  "https://classroom-project-frontend-6uar.vercel.app",
+  "https://nguyenthang2k4dev.id.vn/",
+];
+
 const corsOptions = {
-  origin: "https://classroom-project-frontend-6uar.vercel.app", // Chỉ định origin của client (React app)
+  origin: function (origin, callback) {
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true, // Cho phép gửi cookie và các thông tin xác thực khác
 };
+
+module.exports = corsOptions;
 
 app.use(cors(corsOptions));
 app.use(express.json());
