@@ -1,12 +1,16 @@
-require('dotenv').config();
 const Redis = require('ioredis');
 
 const redis = new Redis({
-    port: process.env.REDIS_PORT,
-    host: process.env.REDIS_HOST,
-    password: process.env.REDIS_PASSWORD,
-    username: process.env.REDIS_USERNAME,
-    tls: true, // TLS required when externally connecting to Render Redis
+  host: 'singapore-redis.render.com',  // Địa chỉ Redis
+  port: 6379,                          // Cổng Redis
+  password: 'V79Ca7aFu2o26vzdWBTGjC7B0TE0Br7R',  // Mật khẩu Redis
+  tls: true                            // Bật TLS để bảo vệ kết nối
 });
 
-module.exports = redis;
+redis.on('connect', () => {
+  console.log('Connected to Redis securely via TLS');
+});
+
+redis.on('error', (err) => {
+  console.error('Redis error:', err);
+});
