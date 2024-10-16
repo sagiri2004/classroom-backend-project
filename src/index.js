@@ -9,7 +9,7 @@ const connectDB = require("./config/connectDB");
 const app = express();
 
 const corsOptions = {
-  origin: "http://localhost:5173", // Chỉ định origin của client (React app)
+  origin: "https://classroom-project-frontend-6uar.vercel.app", // Chỉ định origin của client (React app)
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true, // Cho phép gửi cookie và các thông tin xác thực khác
 };
