@@ -6,6 +6,7 @@ const redis = new Redis({
     host: process.env.REDIS_HOST,
     password: process.env.REDIS_PASSWORD,
     username: process.env.REDIS_USERNAME,
+    tls: true, // TLS required when externally connecting to Render Redis
 });
 
 module.exports = redis;
