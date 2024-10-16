@@ -19,6 +19,13 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(bodyParser.json());
 
+// Middleware để lấy IP của client
+app.use((req, res, next) => {
+  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  console.log('Client IP:', clientIp);
+  next();
+});
+
 routes(app);
 connectDB();
 
