@@ -1,7 +1,11 @@
+require('dotenv').config();
 const Redis = require('ioredis');
+
 const redis = new Redis({
-    host: '127.0.0.1', // Địa chỉ của Redis server
-    port: 6379,        // Cổng của Redis server
+    port: process.env.REDIS_PORT,
+    host: process.env.REDIS_HOST,
+    password: process.env.REDIS_PASSWORD,
+    username: process.env.REDIS_USERNAME,
 });
 
 module.exports = redis;
