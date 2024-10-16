@@ -1,9 +1,9 @@
 {
   "development": {
-    "username": "sagiri",
-    "password": "asdwasdw123",
-    "database": "classroomdb",
-    "host": "127.0.0.1",
+    "username": "sql12738398",
+    "password": "8JvWZ78Hck",
+    "database": "sql12738398",
+    "host": "sql12.freesqldatabase.com",
     "dialect": "mysql"
   },
   "test": {
